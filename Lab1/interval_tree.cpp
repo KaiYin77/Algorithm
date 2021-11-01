@@ -8,6 +8,8 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <limits.h>
+
 using std::string;
 using std::cout;
 using std::endl;
@@ -17,11 +19,12 @@ class RBT;
 class Rect{
     private:
         int lowX, lowY, hiX, hiY;
+        friend class RBT;
 
     public:
         Rect(): lowX(0), lowY(0), hiX(0), hiY(0){}
         Rect(int x1, int y1, int x2, int y2): lowX(x1), lowY(y1), hiX(x2), hiY(y2){}
-
+        
         int GetLowX() const{return lowX;};
         int GetLowY() const{return lowY;};
         int GetHiX() const{return hiX;};
@@ -36,15 +39,18 @@ class TreeNode{
         TreeNode *rightchild;
         TreeNode *parent;
         std::string element;
-        int key;
+        //int key;
+        Rect *key;
         int color;		// for color: 0: Red, 1: Black
         friend class RBT;
 
     public:
         TreeNode():leftchild(0), rightchild(0), parent(0), key(0), element(""), color(0){}
-        TreeNode(int key, string str = ""):leftchild(0), rightchild(0), parent(0), key(key), element(str), color(0){}
+        //TreeNode(int key, string str = ""):leftchild(0), rightchild(0), parent(0), key(key), element(str), color(0){}
+        TreeNode(Rect* key, string str = ""):leftchild(0), rightchild(0), parent(0), key(key), element(str), color(0){}
 
-        int GetKey() const{return key;};
+        //int GetKey() const{return key;};
+        Rect* GetKey() const{return key;};
         string GetElement() const{return element;};
 
 
@@ -61,7 +67,7 @@ class RBT{
         void RightRotation(TreeNode *x);
         void InsertFixedUpRBT(TreeNode *current);
         void DeleteFixedUpRBT(TreeNode *current);
-        TreeNode* Successor(TreeNode *current);	// called bt DeleteRBT()
+        TreeNode* Successor(TreeNode *current);	// called by DeleteRBT()
         TreeNode* Leftmost(TreeNode *current);	// called by Succesor
 
 
@@ -73,9 +79,44 @@ class RBT{
             root->parent = neel;
         };
 
-        void InsertRBT(int key, string str);
-        void DeleteRBT(int KEY);
-        TreeNode* Search(int KEY);
+        //void InsertRBT(int key, string str);
+        //void DeleteRBT(int KEY);
+        //TreeNode* Search(int KEY);
+        void InsertRBT(Rect* KEY, string str);
+        void DeleteRBT(Rect* KEY);
+        TreeNode* Search(Rect* KEY);
+        void SearchAll(Rect* KEY, std::ofstream& output);
+        void OverlapDetect(Rect* KEY, std::ofstream& output);
+        void SmallestArea(int x, int y, std::ofstream& output);
+        bool IsOverlap(Rect* key1, Rect* key2);
+        bool IsViolate(Rect* key1, Rect* key2);
+
+        TreeNode* GetRoot() const{ return root; };
+        TreeNode* GetNeel() const{ return neel; };
+
+        void inOrderHelper(TreeNode* node) {
+            if (node != neel) {
+                inOrderHelper(node->leftchild);
+                std::cout << node->GetElement() << " ";
+                inOrderHelper(node->rightchild);
+            }
+	    }
+        void inOrderCheck(TreeNode* node, Rect* KEY, std::ofstream& output) {
+            
+            if (node != neel) {
+                inOrderCheck(node->leftchild, KEY, output);
+                if (IsOverlap(KEY, node->key)){
+                    output << node->element;
+                    if (IsViolate(KEY, node->key)){
+                        output << " violate" << std::endl;
+                    }
+                    else{
+                        output << std::endl;
+                    }
+                }
+                inOrderCheck(node->rightchild, KEY, output);
+            }
+	    }
 
 
 };
@@ -115,6 +156,7 @@ void RBT::LeftRotation(TreeNode *x){
     x->parent = y;
 }
 
+
 void RBT::RightRotation(TreeNode *y){
   
     TreeNode *x = y->leftchild;
@@ -140,35 +182,50 @@ void RBT::RightRotation(TreeNode *y){
     y->parent = x;
 }
 
+
 TreeNode* RBT::Leftmost(TreeNode *current){
     
-    while (current->leftchild != NULL){
+    while (current->leftchild != neel){
         current = current->leftchild;
     }
     return current;
 }
+
+
 TreeNode* RBT::Successor(TreeNode *current){
     
-    if (current->rightchild != NULL){
+    if (current->rightchild != neel){
         return Leftmost(current->rightchild);
     }
     
     TreeNode *new_node = current->parent;
     
-    while (new_node != NULL && current == new_node->rightchild) {
+    while (new_node != neel && current == new_node->rightchild) {
         current = new_node;
         new_node = new_node->parent;
     }
     
     return new_node;
 }
-TreeNode* RBT::Search(int KEY){
+
+
+bool IsSameRect(Rect* key1, Rect* key2) {
+    if ((key1->GetLowX() == key2->GetLowX()) && 
+        (key1->GetLowY() == key2->GetLowY()) && 
+        (key1->GetHiX() == key2->GetHiX()) && 
+        (key1->GetHiY() == key2->GetHiY()))
+        return true;
+    else 
+        return false;
+}
+
+TreeNode* RBT::Search(Rect* KEY){
 
     TreeNode *current = root;               
-         
-    while (current != NULL && KEY != current->key) {  
+    
+    while (current != neel && !IsSameRect(KEY, current->key)){  
     	                                              
-        if (KEY < current->key){                      
+        if (KEY->GetLowX() <= current->key->GetLowX()){                      
             current = current->leftchild;   
         }
         else {
@@ -176,7 +233,108 @@ TreeNode* RBT::Search(int KEY){
         }
     }
     return current;
+
+
 }
+
+void RBT::SearchAll(Rect* KEY, std::ofstream& output){
+
+    TreeNode *current = root;               
+
+    while (current != neel) {
+                                 
+        if (KEY->GetLowX() <= current->key->GetLowX()) {  
+            if (IsSameRect(KEY, current->key))
+                output << current->element << std::endl;                    
+            current = current->leftchild;   
+        }
+        else {
+            current = current->rightchild;  
+        }
+    }
+
+
+}
+
+bool IsSameLowLeftCorner(int x, int y, Rect* key) {
+    if ((x == key->GetLowX()) && 
+        (y == key->GetLowY()))
+        return true;
+    else 
+        return false;
+}
+int CalArea(Rect* key){
+    return ( key->GetHiX() - key->GetLowX() ) * ( key->GetHiY() - key->GetLowY() );
+}
+
+void RBT::SmallestArea(int x, int y, std::ofstream& output){
+    
+    TreeNode *current = root;               
+    int minArea = INT_MAX;
+    std::stringstream buffer;
+
+    while (current != neel) {
+                                 
+        if (x <= current->key->GetLowX()) {   
+            if (IsSameLowLeftCorner(x, y, current->key)){
+                int area = CalArea(current->key);
+                if (area <= minArea){
+                    if (area < minArea){
+                        minArea = area;
+                        buffer.str("");
+                        buffer.clear();
+                    }
+                    buffer << current->element << std::endl;
+                }
+            }                   
+            current = current->leftchild;   
+        }
+        else {
+            current = current->rightchild;  
+        }
+    }
+    output << buffer.str();
+
+
+}
+
+bool RBT::IsOverlap(Rect* key1, Rect* key2){
+    if ((key1->GetLowX() >= key2->GetLowX()) && 
+        (key1->GetLowY() >= key2->GetLowY()) && 
+        (key1->GetHiX() <= key2->GetHiX()) && 
+        (key1->GetHiY() <= key2->GetHiY()))
+        return true;
+    else 
+        return false;
+}
+bool RBT::IsViolate(Rect* key1, Rect* key2){
+    if ((key1->GetLowX() - key2->GetLowX())>=20 && 
+        (key1->GetLowY() - key2->GetLowY())>=20 && 
+        (key2->GetHiX() - key1->GetHiX())>=20 && 
+        (key2->GetHiY() - key1->GetHiY())>=20)
+        return false;
+    else 
+        return true;
+
+}
+void RBT::OverlapDetect(Rect* KEY, std::ofstream& output){
+
+    TreeNode *current = root;               
+
+    while (current != neel){  
+        //TODO                                     
+        if (current->key->GetLowX() > KEY->GetLowX()){    
+            current = current->leftchild;   
+        }
+        else {
+            break;  
+        }
+    }
+    inOrderCheck(current, KEY, output);
+
+
+ }
+
 
 /**
  *  InsertRBT
@@ -194,90 +352,91 @@ void RBT::InsertFixedUpRBT(TreeNode *current){
         
         // UPPER-Part: parent is the grandparent's left child
         if (current->parent == current->parent->parent->leftchild) {
-        TreeNode *uncle = current->parent->parent->rightchild;
+            TreeNode *uncle = current->parent->parent->rightchild;
 
-        // case1: uncle is red
-        if (uncle->color == 0) {
-            current->parent->color = 1;
-        uncle->color = 1;
-        current->parent->parent->color = 0;
-        current = current->parent->parent;
-        }
-        // case2 & 3: uncle is black
-        else {
-        // transform case2 to case3
-            if (current == current->parent->rightchild) {
-        current = current->parent;
-        LeftRotation(current);
-        }
-        // case3
-        current->parent->color = 1;
-        current->parent->parent->color = 0;
-        RightRotation(current->parent->parent);
-        }
+            // case1: uncle is red
+            if (uncle->color == 0) {
+                current->parent->color = 1;
+                uncle->color = 1;
+                current->parent->parent->color = 0;
+                current = current->parent->parent;
+            }
+            // case2 & 3: uncle is black
+            else {
+                // transform case2 to case3
+                if (current == current->parent->rightchild) {
+                    current = current->parent;
+                    LeftRotation(current);
+                }
+                // case3
+                current->parent->color = 1;
+                current->parent->parent->color = 0;
+                RightRotation(current->parent->parent);
+            }
         }
         // LOWER-Part: parent is the grandparent's right chlid
         else {
-        TreeNode *uncle = current->parent->parent->leftchild;
-        // case1: uncle is red
-        if (uncle->color == 0) {
-            current->parent->color = 1;
-        uncle->color = 1;
-        current->parent->parent->color = 0;
-        current = current->parent->parent;
-        }
-        // case2 & 3: uncle is black;
-        else {
-        // transform case2 to case3
-            if (current == current->parent->leftchild) {
-        current = current->parent;
-        RightRotation(current);
-        }
-        // case3
-        current->parent->color = 1;
-        current->parent->parent->color = 0;
-        LeftRotation(current->parent->parent);
-        }
+            TreeNode *uncle = current->parent->parent->leftchild;
+            // case1: uncle is red
+            if (uncle->color == 0) {
+                current->parent->color = 1;
+                uncle->color = 1;
+                current->parent->parent->color = 0;
+                current = current->parent->parent;
+            }
+            // case2 & 3: uncle is black;
+            else {
+                // transform case2 to case3
+                if (current == current->parent->leftchild) {
+                    current = current->parent;
+                    RightRotation(current);
+                }
+                // case3
+                current->parent->color = 1;
+                current->parent->parent->color = 0;
+                LeftRotation(current->parent->parent);
+            }
         }
     }
-
     root->color = 1;
 
+
 }
-void RBT::InsertRBT(int key, string element){
+void RBT::InsertRBT(Rect* key, string element){
   
-  TreeNode *y = neel;  //準新手爸媽
-  TreeNode *x = root;  //哨兵
-  
-  TreeNode *insert_node = new TreeNode(key, element);
+    TreeNode *y = neel;  //準新手爸媽
+    TreeNode *x = root;  //哨兵
+    
+    TreeNode *insert_node = new TreeNode(key, element);
 
-  while (x!=neel){
-    y = x;
-    if (insert_node->key < x->key)
-      x = x->leftchild;
-    else
-      x = x->rightchild;
-  }
+    while (x != neel){
+        y = x;
+        if (insert_node->key->GetLowX() <= x->key->GetLowX())
+            x = x->leftchild;
+        else
+            x = x->rightchild;
+    }
 
-  insert_node->parent = y;
+    insert_node->parent = y;
 
-  if (y == neel){
-    this->root = insert_node;
-  }
-  else if (insert_node->key < y->key){
-    y->leftchild = insert_node;
-  }
-  else{
-    y->rightchild = insert_node;
-  }
-  
-  // customized for RBT settings
-  insert_node->leftchild = neel;
-  insert_node->rightchild = neel;
-  insert_node->color = 0;	//Setting new insertion node's color to be red
+    if (y == neel) {
+        this->root = insert_node;
+    }
+    else if (insert_node->key->GetLowX() <= y->key->GetLowX()){
+        y->leftchild = insert_node;
+    }
+    else {
+        y->rightchild = insert_node;
+    }
+    
+    // customized for RBT settings
+    insert_node->leftchild = neel;
+    insert_node->rightchild = neel;
+    insert_node->color = 0;	//Setting new insertion node's color to be red
 
-  // Fixed the color setting
-  InsertFixedUpRBT(insert_node);
+    // Fixed the color setting
+    InsertFixedUpRBT(insert_node);
+
 
 }
 
@@ -297,89 +456,86 @@ void RBT::DeleteFixedUpRBT(TreeNode *current){
     while (current != root && current->color == 1) {
         // current is leftchild
         if (current == current->parent->leftchild) {
-        TreeNode *sibling = current->parent->rightchild;
+            TreeNode *sibling = current->parent->rightchild;
 
-        // Case1: Sibling is red
-        if (sibling->color == 0) {
-            sibling->color = 1;
-            current->parent->color = 0;
-            LeftRotation(current->parent);
-        sibling = current->parent->rightchild;
-        }
-        // Goto Case2,3,4 (Sibling become black)
-        // Case2: Sibling's both child is black
-        if (sibling->leftchild->color == 1 && sibling->rightchild->color == 1 ){
-            sibling->color = 0;
-        current = current->parent;
-        }
-        // Case3 & 4: current has only child with Black color
-        else {
-            // case3 sibling's right child is black, left child is red
-        if (sibling->rightchild->color == 1){
-        sibling->leftchild->color = 1;
-        sibling->color = 0;
-        RightRotation(sibling);
-        sibling = current->parent->rightchild;
-        }
-        // after Case3 operation, will always be case4
-        // case4 sibling's right child is red, left child is black
-        sibling->color = current->parent->color;
-        current->parent->color = 1;
-        sibling->rightchild->color = 1;
-        LeftRotation(current->parent);
-        current = root;
-        }
+            // Case1: Sibling is red
+            if (sibling->color == 0) {
+                sibling->color = 1;
+                current->parent->color = 0;
+                LeftRotation(current->parent);
+                sibling = current->parent->rightchild;
+            }
+            // Goto Case2,3,4 (Sibling become black)
+            // Case2: Sibling's both child is black
+            if (sibling->leftchild->color == 1 && sibling->rightchild->color == 1 ){
+                sibling->color = 0;
+                current = current->parent;
+            }
+            // Case3 & 4: current has only child with Black color
+            else {
+                // case3 sibling's right child is black, left child is red
+                if (sibling->rightchild->color == 1){
+                    sibling->leftchild->color = 1;
+                    sibling->color = 0;
+                    RightRotation(sibling);
+                    sibling = current->parent->rightchild;
+                }
+                // after Case3 operation, will always be case4
+                // case4 sibling's right child is red, left child is black
+                sibling->color = current->parent->color;
+                current->parent->color = 1;
+                sibling->rightchild->color = 1;
+                LeftRotation(current->parent);
+                current = root;
+            }
         }
         // current is rightchild
         else {
-        TreeNode *sibling = current->parent->leftchild;
-        
-        // Case1: Sibling is red
-        if (sibling->color == 0) {
-            sibling->color = 1;
-            current->parent->color = 0;
-            RightRotation(current->parent);
-        sibling = current->parent->leftchild;
-        }
-        // Goto Case2,3,4
-        // Case2: Sibling's both child is black
-        if (sibling->leftchild->color == 1 && sibling->rightchild->color == 1 ){
-            sibling->color = 0;
-        current = current->parent;
-        }
-        // Case3 & 4: current has only child with Black color
-        else {
-            // case3 sibling's left child is black, right child is red
-        if (sibling->leftchild->color == 1){
-        sibling->rightchild->color = 1;
-        sibling->color = 0;
-        LeftRotation(sibling);
-        sibling = current->parent->leftchild;
-        }
-        // after Case3 operation, will always be case4
-        // case4 sibling's left child is red, right child is black
-        sibling->color = current->parent->color;
-        current->parent->color = 1;
-        sibling->leftchild->color = 1;
-        RightRotation(current->parent);
-        current = root;
-        }
+            TreeNode *sibling = current->parent->leftchild;
+            
+            // Case1: Sibling is red
+            if (sibling->color == 0) {
+                sibling->color = 1;
+                current->parent->color = 0;
+                RightRotation(current->parent);
+                sibling = current->parent->leftchild;
+            }
+            // Goto Case2,3,4
+            // Case2: Sibling's both child is black
+            if (sibling->leftchild->color == 1 && sibling->rightchild->color == 1 ){
+                sibling->color = 0;
+                current = current->parent;
+            }
+            // Case3 & 4: current has only child with Black color
+            else {
+                // case3 sibling's left child is black, right child is red
+                if (sibling->leftchild->color == 1){
+                    sibling->rightchild->color = 1;
+                    sibling->color = 0;
+                    LeftRotation(sibling);
+                    sibling = current->parent->leftchild;
+                }
+                // after Case3 operation, will always be case4
+                // case4 sibling's left child is red, right child is black
+                sibling->color = current->parent->color;
+                current->parent->color = 1;
+                sibling->leftchild->color = 1;
+                RightRotation(current->parent);
+                current = root;
+            }
         }
     }
-
     current->color = 1;
 
 
 }
-
-void RBT::DeleteRBT(int KEY) {
+void RBT::DeleteRBT(Rect* key) {
   
-    TreeNode *delete_node = Search(KEY);
-
-    if (delete_node == NULL) {
-        std::cout << "data not found.\n";
+    TreeNode *delete_node = Search(key);
+    if (delete_node == neel) {
+        //std::cout << "data not found.\n";
         return; 
-    } 
+    }
 
     TreeNode *y = 0; 	//The Node Ready to be deleted
     TreeNode *x = 0; 	//The Node's child
@@ -391,7 +547,6 @@ void RBT::DeleteRBT(int KEY) {
     else {
         y = Successor(delete_node);
     }
-
     if (y->leftchild != neel){
         x = y->leftchild;
     }
@@ -399,10 +554,8 @@ void RBT::DeleteRBT(int KEY) {
         x = y->rightchild;
     }
 
-    if (x != neel) {
-        x->parent = y->parent;
-    }
-    
+    x->parent = y->parent;
+
     if (y->parent == neel) {
         this->root = x;
     }
@@ -422,6 +575,7 @@ void RBT::DeleteRBT(int KEY) {
     if (y->color == 1){
         DeleteFixedUpRBT(x);
     } 
+
 }
 
 
@@ -433,9 +587,9 @@ int main(int argc, char**argv) {
         std::cout << "[Usage]: ./Lab1 input.txt output.txt" << std::endl;
         return 1;
     }
-    else if ( argc == 3 ){
-        std::cout << "Parsing input.txt ..." << std::endl;
-    }
+    // else if ( argc == 3 ){
+    //     std::cout << "Parsing input.txt ..." << std::endl;
+    // }
     
     // Input Output file
     std::ifstream inputFile;
@@ -444,7 +598,7 @@ int main(int argc, char**argv) {
     outputFile.open(std::string(argv[2]));
 
     // Building Interval Tree
-    //RBT intervalTree;
+    RBT intervalTree;
 
     std::string line;
     while ( std::getline(inputFile, line) ){
@@ -452,40 +606,44 @@ int main(int argc, char**argv) {
         std::string operation;
         buffer >> operation;
         
+        std::string idx;
+        int lowX, lowY, highX, highY;
         if (operation == "I"){
-            std::string idx;
-            int lowX, lowY, highX, highY;
             buffer >> idx >> lowX >> lowY >> highX >> highY;
+            Rect* r = new Rect(lowX, lowY, highX, highY);
+            intervalTree.InsertRBT(r, idx);
             
         }
         else if (operation == "D"){
-            int lowX, lowY, highX, highY;
             buffer >> lowX >> lowY >> highX >> highY;
-            
-            
+            Rect* r = new Rect(lowX, lowY, highX, highY);
+            intervalTree.DeleteRBT(r);
         }
         else if (operation == "O"){
-            int lowX, lowY, highX, highY;
             buffer >> lowX >> lowY >> highX >> highY;
-           
+            Rect* r = new Rect(lowX, lowY, highX, highY);
+
             outputFile << "O" << std::endl;
+            intervalTree.OverlapDetect(r, outputFile);
         }
         else if (operation == "S"){
-            int lowX, lowY, highX, highY;
             buffer >> lowX >> lowY >> highX >> highY;
+            Rect* r = new Rect(lowX, lowY, highX, highY);
             
             outputFile << "S" << std::endl;
+            intervalTree.SearchAll(r, outputFile);
         }
         else if (operation == "A"){
-            int lowX, lowY;
             buffer >> lowX >> lowY;
             
             outputFile << "A" << std::endl;
+            intervalTree.SmallestArea(lowX, lowY, outputFile);
         }
-        
-        
     }
-    
+    //intervalTree.inOrderHelper(intervalTree.GetRoot());
     outputFile.close();
+    
     return 0;
+
+
 }
