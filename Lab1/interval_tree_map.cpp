@@ -92,12 +92,24 @@ void RBT::InsertRBT(Rect* key, std::string element){
 
 
 void RBT::DeleteRBT(Rect* key) {
+    auto minIt = intervalTree.cend();
+    int minId = INT_MAX;
+
     for (auto it = intervalTree.cbegin(), next_it = it; it != intervalTree.cend(); it = next_it) {
         ++next_it;
         if (IsSameRect(key, it->first)) {
-            intervalTree.erase(it);
+            std::string parseString = it->second;
+            parseString.erase(0,1);
+            int id = stoi(parseString);
+            if (id < minId){
+                minId = id;
+                minIt = it;
+            }
+            //intervalTree.erase(it);
         }
     }
+
+    intervalTree.erase(minIt);
 
 }
 
