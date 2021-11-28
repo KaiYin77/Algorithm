@@ -50,9 +50,9 @@ void GraphMST::PrimMST(int Start){
     int u = MinKeyExtract(key, visited, num_vertex);
     visited[u] = true;
     for (int j = 0; j < num_vertex; j++){
-      if (visited[j] == false && AdjMatrix[u][j]!=0 && AdjMatrix[u][j]<key[j]) {
-        predecessor[j] = u;
-	key[j] = AdjMatrix[u][j];
+        if (visited[j] == false && AdjMatrix[u][j]!=0 && AdjMatrix[u][j]<key[j]) {
+            predecessor[j] = u;
+	          key[j] = AdjMatrix[u][j];
       }
     }
   }
