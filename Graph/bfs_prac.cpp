@@ -7,28 +7,26 @@
 class Graph {
    private:
     int num_vertex;
-    std::vector<std::list<int> > AdjList;
-    int *color,        // 0:white, 1:gray, 2:black
-        *distance,     // 0:start, inf:other
-        *predecessor;  //-1:no predecessor
+    std::vector<std::list<int>> AdjList;
+    int *color, *distance, *predecessor;
+
    public:
     Graph() : num_vertex(0){};
-    Graph(int N) : num_vertex(N) { AdjList.resize(num_vertex); };
+    Graph(int n) : num_vertex(n) { AdjList.resize(n); };
     void AddEdgeList(int from, int to);
-    void BFS(int Start);
-
-    void Show();
+    void BFS(int start);
+    void Visualize();
 };
 
-void Graph::Show() {
+void Graph::Visualize() {
     std::cout << "Distance: ";
-    for (int i = 0; i < num_vertex; i++) {
+    for (int i=0; i<num_vertex; i++) {
         std::cout << distance[i] << " ";
     }
     std::cout << std::endl;
 
     std::cout << "Predecessor: ";
-    for (int i = 0; i < num_vertex; i++) {
+    for (int i=0; i<num_vertex; i++) {
         std::cout << predecessor[i] << " ";
     }
     std::cout << std::endl;
@@ -36,22 +34,21 @@ void Graph::Show() {
 
 void Graph::AddEdgeList(int from, int to) { AdjList[from].push_back(to); }
 
-void Graph::BFS(int Start) {
+void Graph::BFS(int start) {
     color = new int[num_vertex];
-    predecessor = new int[num_vertex];
     distance = new int[num_vertex];
+    predecessor = new int[num_vertex];
 
+    // initialize 3 array
     for (int i = 0; i < num_vertex; i++) {
-        color[i] = 0;
-        predecessor[i] = -1;
-        distance[i] = num_vertex + 1;
+        color[i] = 0;                  // 0:white; 1:gray; 2:black
+        distance[i] = num_vertex - 1;  // set maximum dist.
+        predecessor[i] = -1;           // set no predecessor
     }
 
     std::queue<int> q;
-    int i = Start;
-
+    int i = start;
     for (int j = 0; j < num_vertex; j++) {
-        // Each connected component
         if (color[i] == 0) {
             color[i] = 1;
             distance[i] = 0;
@@ -59,13 +56,12 @@ void Graph::BFS(int Start) {
             q.push(i);
             while (!q.empty()) {
                 int u = q.front();
-                for (std::list<int>::iterator itr = AdjList[u].begin();
-                     itr != AdjList[u].end(); itr++) {
-                    if (color[*itr] == 0) {
-                        color[*itr] = 1;
-                        distance[*itr] = distance[u] + 1;
-                        predecessor[*itr] = u;
-                        q.push(*itr);
+                for (auto& itr : AdjList[u]) {
+                    if (color[itr] == 0) {
+                        color[itr] = 1;
+                        distance[itr] = distance[u] + 1;
+                        predecessor[itr] = u;
+                        q.push(itr);
                     }
                 }
                 q.pop();
@@ -75,7 +71,6 @@ void Graph::BFS(int Start) {
         i = j;
     }
 }
-
 int main() {
     Graph g1(9);
     g1.AddEdgeList(0, 1);
@@ -106,7 +101,8 @@ int main() {
     g1.AddEdgeList(8, 6);
 
     g1.BFS(0);
-    g1.Show();
+    g1.Visualize();
 
     return 0;
 }
+
